@@ -88,7 +88,7 @@ vec3 Li(Ray& primary_ray)
 	MetalBSDF metal(&microfacet, hit.material->m_color, hit.material->m_fresnel);
 	BSDFLinearBlend metal_blend(hit.material->m_metalness, &metal, &dielectric);
 	BSDF& mat = metal_blend;
-	//
+	
 
 	///////////////////////////////////////////////////////////////////
 	// Calculate Direct Illumination from light.
