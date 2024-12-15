@@ -73,43 +73,86 @@ vec3 Li(Ray& primary_ray)
 	vec3 path_throughput = vec3(1.0);
 	Ray current_ray = primary_ray;
 
-	///////////////////////////////////////////////////////////////////
-	// Get the intersection information from the ray
-	///////////////////////////////////////////////////////////////////
-	Intersection hit = getIntersection(current_ray);
-	///////////////////////////////////////////////////////////////////
-	// Create a Material tree for evaluating brdfs and calculating
-	// sample directions.
-	///////////////////////////////////////////////////////////////////
 
-	Diffuse diffuse(hit.material->m_color);
-	MicrofacetBRDF microfacet(hit.material->m_shininess);
-	DielectricBSDF dielectric(&microfacet, &diffuse, hit.material->m_fresnel);
-	MetalBSDF metal(&microfacet, hit.material->m_color, hit.material->m_fresnel);
-	BSDFLinearBlend metal_blend(hit.material->m_metalness, &metal, &dielectric);
-	BSDF& mat = metal_blend;
-	
+	for (int bounces = 0; bounces <= settings.max_bounces; bounces++) {
 
-	///////////////////////////////////////////////////////////////////
-	// Calculate Direct Illumination from light.
-	///////////////////////////////////////////////////////////////////
-	{
+
+		///////////////////////////////////////////////////////////////////
+		// Get the intersection information from the ray
+		///////////////////////////////////////////////////////////////////
+		Intersection hit = getIntersection(current_ray);
+		///////////////////////////////////////////////////////////////////
+		// Create a Material tree for evaluating brdfs and calculating
+		// sample directions.
+		///////////////////////////////////////////////////////////////////
+
+		Diffuse diffuse(hit.material->m_color);
+		BTDF& mat = diffuse;
+		/*MicrofacetBRDF microfacet(hit.material->m_shininess);
+		DielectricBSDF dielectric(&microfacet, &diffuse, hit.material->m_fresnel);
+		MetalBSDF metal(&microfacet, hit.material->m_color, hit.material->m_fresnel);
+		BSDFLinearBlend metal_blend(hit.material->m_metalness, &metal, &dielectric);
+		BSDF& mat = metal_blend;
+		*/
+
+		//直接光照
 		const float distance_to_light = length(point_light.position - hit.position);
 		const float falloff_factor = 1.0f / (distance_to_light * distance_to_light);
 		vec3 Li = point_light.intensity_multiplier * point_light.color * falloff_factor;
 		vec3 wi = normalize(point_light.position - hit.position);
-		//L = mat.f(wi, hit.wo, hit.shading_normal) * Li * std::max(0.0f, dot(wi, hit.shading_normal));
-		Ray shadow_ray;
-		shadow_ray.o = hit.position + 0.001f * wi; // Offset to prevent self-intersection
-		shadow_ray.d = wi;
-
-		if (!occluded(shadow_ray)) // Check if the point is occluded
+		Ray shadow_ray(hit.position + 0.001f * wi, wi);
+		if (!occluded(shadow_ray))
 		{
-			L = mat.f(wi, hit.wo, hit.shading_normal) * Li * std::max(0.0f, dot(wi, hit.shading_normal));
+			L += path_throughput * mat.f(wi, hit.wo, hit.shading_normal) * Li * std::max(0.0f, dot(wi, hit.shading_normal));
 		}
+
+		// Add emitted radiance from intersection
+		L += path_throughput * hit.material->m_emission;
+
+		WiSample r = mat.sample_wi(hit.wo, hit.shading_normal);
+
+		if (r.pdf < EPSILON) {
+			return L;
+		}
+
+		float cosineterm = abs(dot(r.wi, hit.shading_normal));
+
+		path_throughput = path_throughput * (r.f * cosineterm) / r.pdf;
+
+		if (path_throughput == vec3(0.0f, 0.0f, 0.0f)) {
+			return L;
+		}
+
+		
+		current_ray.o = hit.position + 0.001f * r.wi; // 偏移避免自相交
+		current_ray.d = r.wi;
+
+		if (!intersect(current_ray)) {
+			return L + path_throughput * Lenvironment(current_ray.d);
+		}
+
+		///////////////////////////////////////////////////////////////////
+		// Calculate Direct Illumination from light.
+		///////////////////////////////////////////////////////////////////
+		/*{
+			const float distance_to_light = length(point_light.position - hit.position);
+			const float falloff_factor = 1.0f / (distance_to_light * distance_to_light);
+			vec3 Li = point_light.intensity_multiplier * point_light.color * falloff_factor;
+			vec3 wi = normalize(point_light.position - hit.position);
+			//L = mat.f(wi, hit.wo, hit.shading_normal) * Li * std::max(0.0f, dot(wi, hit.shading_normal));
+			Ray shadow_ray;
+			shadow_ray.o = hit.position + 0.001f * wi; // Offset to prevent self-intersection
+			shadow_ray.d = wi;
+
+			if (!occluded(shadow_ray)) // Check if the point is occluded
+			{
+				L = mat.f(wi, hit.wo, hit.shading_normal) * Li * std::max(0.0f, dot(wi, hit.shading_normal));
+			}
+		}*/
 	}
 	// Return the final outgoing radiance for the primary ray
 	return L;
+	
 }
 
 ///////////////////////////////////////////////////////////////////////////
