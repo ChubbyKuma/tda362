@@ -85,15 +85,19 @@ vec3 Li(Ray& primary_ray)
 		// Create a Material tree for evaluating brdfs and calculating
 		// sample directions.
 		///////////////////////////////////////////////////////////////////
-
+		//stack
 		Diffuse diffuse(hit.material->m_color);
-		BTDF& mat = diffuse;
-		/*MicrofacetBRDF microfacet(hit.material->m_shininess);
+		//BTDF& mat = diffuse;
+		MicrofacetBRDF microfacet(hit.material->m_shininess);
+		GlassBTDF glassBTDF(hit.material->m_ior);
 		DielectricBSDF dielectric(&microfacet, &diffuse, hit.material->m_fresnel);
 		MetalBSDF metal(&microfacet, hit.material->m_color, hit.material->m_fresnel);
 		BSDFLinearBlend metal_blend(hit.material->m_metalness, &metal, &dielectric);
 		BSDF& mat = metal_blend;
-		*/
+		BTDFLinearBlend glass_blend(hit.material->m_transparency, &glassBTDF, &diffuse);
+		//BTDF& mat = glass_blend;
+
+
 
 		//直接光照
 		const float distance_to_light = length(point_light.position - hit.position);
@@ -106,7 +110,7 @@ vec3 Li(Ray& primary_ray)
 			L += path_throughput * mat.f(wi, hit.wo, hit.shading_normal) * Li * std::max(0.0f, dot(wi, hit.shading_normal));
 		}
 
-		// Add emitted radiance from intersection
+
 		L += path_throughput * hit.material->m_emission;
 
 		WiSample r = mat.sample_wi(hit.wo, hit.shading_normal);
@@ -123,13 +127,20 @@ vec3 Li(Ray& primary_ray)
 			return L;
 		}
 
-		
+		Ray newray;
+
+		current_ray = newray;
 		current_ray.o = hit.position + 0.001f * r.wi; // 偏移避免自相交
 		current_ray.d = r.wi;
+
+
 
 		if (!intersect(current_ray)) {
 			return L + path_throughput * Lenvironment(current_ray.d);
 		}
+
+		
+		
 
 		///////////////////////////////////////////////////////////////////
 		// Calculate Direct Illumination from light.

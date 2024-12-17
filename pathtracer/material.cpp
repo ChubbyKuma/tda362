@@ -106,7 +106,7 @@ vec3 DielectricBSDF::f(const vec3& wi, const vec3& wo, const vec3& n) const
 WiSample DielectricBSDF::sample_wi(const vec3& wo, const vec3& n) const
 {
 	WiSample r;
-
+	//task 7
 	if (randf() < 0.5) {
 		r = reflective_material->sample_wi(wo, n);
 		r.pdf *= 0.5;
@@ -187,23 +187,9 @@ vec3 GlassBTDF::f(const vec3& wi, const vec3& wo, const vec3& n) const
 	{
 		return vec3(0);
 	}
-
-	float eta;
-	glm::vec3 N;
-
-	if (dot(wo, n) > 0.0f)
-	{
-		//from air
-
-		float F = pow((ior - 1) / (ior + 1), 2);
-		return vec3(F);
-	}
 	else
 	{
-		//to air
-
-		float F = pow((1 - ior) / (1 + ior), 2);
-		return vec3(F);
+		return vec3(1);
 	}
 }
 
@@ -213,7 +199,7 @@ WiSample GlassBTDF::sample_wi(const vec3& wo, const vec3& n) const
 
 	float eta;
 	glm::vec3 N;
-	if(dot(wo, n) > 0.0f)
+	if (dot(wo, n) > 0.0f)
 	{
 		N = n;
 		eta = 1.0f / ior;
@@ -237,7 +223,7 @@ WiSample GlassBTDF::sample_wi(const vec3& wo, const vec3& n) const
 
 	float w = dot(wo, N) * eta;
 	float k = 1.0f + (w - eta) * (w + eta);
-	if(k < 0.0f)
+	if (k < 0.0f)
 	{
 		// Total internal reflection
 		r.wi = reflect(-wo, n);
@@ -260,7 +246,7 @@ vec3 BTDFLinearBlend::f(const vec3& wi, const vec3& wo, const vec3& n) const
 
 WiSample BTDFLinearBlend::sample_wi(const vec3& wo, const vec3& n) const
 {
-	if(randf() < w)
+	if (randf() < w)
 	{
 		WiSample r = btdf0->sample_wi(wo, n);
 		return r;
